@@ -1,0 +1,45 @@
+plugins { id 'com.android.application' }
+
+def appUrl = (project.findProperty('APP_URL') ?: 'https://masareefi.onrender.com').toString()
+def vCode = (project.findProperty('VERSION_CODE') ?: '1').toString().toInteger()
+def vName = (project.findProperty('VERSION_NAME') ?: '1.0').toString()
+def ksFile = System.getenv('KEYSTORE_FILE')
+
+android {
+    namespace 'com.masareefi.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.masareefi.app'
+        minSdk 26
+        targetSdk 34
+        versionCode vCode
+        versionName vName
+        buildConfigField 'String', 'APP_URL', "\"${appUrl}\""
+    }
+
+    buildFeatures { buildConfig true }
+
+    signingConfigs {
+        release {
+            if (ksFile) {
+                storeFile file(ksFile)
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (ksFile) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

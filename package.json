@@ -1,0 +1,15 @@
+{
+  "name": "masareefi",
+  "version": "1.0.0",
+  "description": "مصاريفي — تطبيق إدارة المصاريف الشخصية مع حسابات مستخدمين وقاعدة بيانات PostgreSQL",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
