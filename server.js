@@ -70,7 +70,7 @@ function pgStore() {
     kind: 'postgres',
     async init() {
       await q(`
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS mx_users (
           id          SERIAL PRIMARY KEY,
           name        TEXT NOT NULL,
           identifier  TEXT NOT NULL UNIQUE,
@@ -78,8 +78,8 @@ function pgStore() {
           tv          INTEGER NOT NULL DEFAULT 0,
           created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
         );
-        CREATE TABLE IF NOT EXISTS user_data (
-          user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        CREATE TABLE IF NOT EXISTS mx_user_data (
+          user_id     INTEGER PRIMARY KEY REFERENCES mx_users(id) ON DELETE CASCADE,
           data        JSONB NOT NULL,
           rev         INTEGER NOT NULL DEFAULT 1,
           updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -87,21 +87,21 @@ function pgStore() {
     },
     async createUser(name, identifier, hash) {
       try {
-        const r = await q('INSERT INTO users(name, identifier, pass_hash) VALUES ($1,$2,$3) RETURNING *', [name, identifier, hash]);
+        const r = await q('INSERT INTO mx_users(name, identifier, pass_hash) VALUES ($1,$2,$3) RETURNING *', [name, identifier, hash]);
         return r.rows[0];
       } catch (e) { if (e.code === '23505') throw dupError(); throw e; }
     },
-    async userByIdent(identifier) { return (await q('SELECT * FROM users WHERE identifier=$1', [identifier])).rows[0] || null; },
-    async userById(id) { return (await q('SELECT * FROM users WHERE id=$1', [id])).rows[0] || null; },
-    async updateName(id, name) { return (await q('UPDATE users SET name=$2 WHERE id=$1 RETURNING *', [id, name])).rows[0]; },
-    async setPassword(id, hash) { return (await q('UPDATE users SET pass_hash=$2, tv=tv+1 WHERE id=$1 RETURNING *', [id, hash])).rows[0]; },
-    async deleteUser(id) { await q('DELETE FROM users WHERE id=$1', [id]); },
-    async getData(id) { return (await q('SELECT data, rev, updated_at FROM user_data WHERE user_id=$1', [id])).rows[0] || null; },
+    async userByIdent(identifier) { return (await q('SELECT * FROM mx_users WHERE identifier=$1', [identifier])).rows[0] || null; },
+    async userById(id) { return (await q('SELECT * FROM mx_users WHERE id=$1', [id])).rows[0] || null; },
+    async updateName(id, name) { return (await q('UPDATE mx_users SET name=$2 WHERE id=$1 RETURNING *', [id, name])).rows[0]; },
+    async setPassword(id, hash) { return (await q('UPDATE mx_users SET pass_hash=$2, tv=tv+1 WHERE id=$1 RETURNING *', [id, hash])).rows[0]; },
+    async deleteUser(id) { await q('DELETE FROM mx_users WHERE id=$1', [id]); },
+    async getData(id) { return (await q('SELECT data, rev, updated_at FROM mx_user_data WHERE user_id=$1', [id])).rows[0] || null; },
     async putData(id, data, rev) {
       const c = await pool.connect();
       try {
         await c.query('BEGIN');
-        const cur = (await c.query('SELECT data, rev, updated_at FROM user_data WHERE user_id=$1 FOR UPDATE', [id])).rows[0];
+        const cur = (await c.query('SELECT data, rev, updated_at FROM mx_user_data WHERE user_id=$1 FOR UPDATE', [id])).rows[0];
         const curRev = cur ? cur.rev : 0;
         if (rev !== undefined && rev !== null && rev !== curRev) {
           await c.query('ROLLBACK');
@@ -109,8 +109,8 @@ function pgStore() {
         }
         const json = JSON.stringify(data);
         const r = cur
-          ? await c.query('UPDATE user_data SET data=$2::jsonb, rev=rev+1, updated_at=now() WHERE user_id=$1 RETURNING rev, updated_at', [id, json])
-          : await c.query('INSERT INTO user_data(user_id, data, rev) VALUES ($1,$2::jsonb,1) RETURNING rev, updated_at', [id, json]);
+          ? await c.query('UPDATE mx_user_data SET data=$2::jsonb, rev=rev+1, updated_at=now() WHERE user_id=$1 RETURNING rev, updated_at', [id, json])
+          : await c.query('INSERT INTO mx_user_data(user_id, data, rev) VALUES ($1,$2::jsonb,1) RETURNING rev, updated_at', [id, json]);
         await c.query('COMMIT');
         return { data, ...r.rows[0] };
       } catch (e) {
@@ -118,7 +118,7 @@ function pgStore() {
         throw e;
       } finally { c.release(); }
     },
-    async stats() { return { users: Number((await q('SELECT count(*) FROM users')).rows[0].count) }; }
+    async stats() { return { users: Number((await q('SELECT count(*) FROM mx_users')).rows[0].count) }; }
   };
 }
 
